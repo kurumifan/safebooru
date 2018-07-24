@@ -1,35 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
-import 'package:firebase_admob/firebase_admob.dart';
+import 'search_page.dart';
+import 'KesShouBann.dart';
 
+import 'package:xml/xml.dart' as xml;
+import 'package:http/http.dart' as http;
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-///Android ad ID
-final String myAppID = "ca-app-pub-7280036561880717~6090211926";
-final String myAdMobAdUnitId = "ca-app-pub-7280036561880717/5067956052";
-
-BannerAd myBanner = new BannerAd(
-  // Replace the testAdUnitId with an ad unit id from the AdMob dash.
-  // https://developers.google.com/admob/android/test-ads
-  // https://developers.google.com/admob/ios/test-ads
-  adUnitId: myAdMobAdUnitId,
-  size: AdSize.smartBanner,
-  targetingInfo: targetingInfo,
-  listener: (MobileAdEvent event) {
-    print("BannerAd event is $event");
-  },
-);
-
-MobileAdTargetingInfo targetingInfo = new MobileAdTargetingInfo(
-  keywords: <String>['anime', 'beautiful picture', 'comic'],
-  contentUrl: 'https://www.ai16bit.com',
-  birthday: new DateTime.now(),
-  childDirected: false,
-  designedForFamilies: false,
-  gender: MobileAdGender
-      .unknown, // or MobileAdGender.female, MobileAdGender.unknown
-  testDevices: <String>[], // Android emulators are considered test devices
-);
-
+///Danbooru
+final String danbooruxml = "https://danbooru.donmai.us/posts.xml";
+List<String> danboorupreviw;
+final String safebooruxml = "https://safebooru.donmai.us/posts.xml";
+List<String> safeboorupreview;
 
 
 class Danbooru extends StatefulWidget {
@@ -38,82 +23,104 @@ class Danbooru extends StatefulWidget {
 }
 
 class _DanbooruState extends State<Danbooru> {
-
-
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
-
-    FirebaseAdMob.instance.initialize(appId: myAppID);
-
-    myBanner
-      // typically this happens well before the ad is shown
-      ..load()
-      ..show(
-        // Positions the banner ad 60 pixels from the bottom of the screen
-        anchorOffset: 60.0,
-        // Banner Position
-        anchorType: AnchorType.bottom,
-      );
+    getsafebooru();
   }
 
+  Future<String> getsafebooru() async {
+    http.Response response3 = await http.get(
+      Uri.encodeFull(safebooruxml),
+    );
+    setState(() {
+      var keys3 = xml.parse(response3.body).findAllElements('preview-file-url');
+      safeboorupreview = keys3.map((node) {
+        return node.text;
+      }).toList();
+    });
+    return 'Success!!';
+  }
 
-  int setcount = 2;
+  int setcount = 3;
+
+_launchURL() async {
+  const url = 'https://safebooru.donmai.us/';
+  if (await canLaunch(url)) {
+    await launch(url);
+  } else {
+    throw 'Could not launch $url';
+  }
+}
 
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
-      appBar: new AppBar(
-        ///column按钮
-        leading: IconButton(
-          icon: Icon(Icons.view_column),
-          onPressed: () {
-            showModalBottomSheet<void>(
-                context: context,
-                builder: (BuildContext context) {
-                  return Container(
-                    height: 60.0,
-                    child: new Row(children: <Widget>[
-                      Expanded(
-                        child: new IconButton(
-                          icon: Icon(Icons.view_week),
-                          onPressed: () {
-                            setState(() {
-                              setcount < 10 ? setcount++ : setcount;
-                            });
-                          },
-                        ),
-                      ),
-                      Expanded(
-                        child: new IconButton(
-                          icon: Icon(Icons.pause),
-                          onPressed: () {
-                            setState(() {
-                              setcount > 2 ? setcount-- : setcount;
-                            });
-                          },
-                        ),
-                      ),
-                    ]),
-                  );
-                });
-          },
-        ),
-        title: new Text('danbooru.donmai.us'),
-        actions: <Widget>[
-          new IconButton(
+    return  Scaffold(
+        appBar: new AppBar(
+          ///column按钮
+          leading: IconButton(
+            icon: Icon(Icons.view_column),
             onPressed: () {
-              // Navigator.of(context).push(new MaterialPageRoute(
-              //     builder: (BuildContext context) => new AdPage()));
+              showModalBottomSheet<void>(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return new Container(
+                        height: 60.0,
+                        child: new Row(children: <Widget>[
+                          Expanded(
+                            child: new IconButton(
+                              icon: Icon(Icons.view_week),
+                              onPressed: () {
+                                setState(() {
+                                  setcount < 10 ? setcount++ : setcount;
+                                });
+                              },
+                            ),
+                          ),
+                          Expanded(
+                            child: new IconButton(
+                              icon: Icon(Icons.pause),
+                              onPressed: () {
+                                setState(() {
+                                  setcount > 2 ? setcount-- : setcount;
+                                });
+                              },
+                            ),
+                          ),
+                        ]),
+                      );
+                  });
             },
-            icon: Icon(Icons.search),
-          ),         
-        ],
-      ),
-      body: new Center(
-        child: new Text('这是测试'),
-      ),
-    );
+          ),
+          title: GestureDetector(child: new Text('safebooru.donmai.us'),onLongPress: _launchURL),
+          actions: <Widget>[
+            ///搜索按钮
+            new IconButton(
+              onPressed: () {
+                Navigator.of(context).push(new MaterialPageRoute(
+                    builder: (BuildContext context) => new SearchPage()));
+              },
+              icon: Icon(Icons.search),
+            ),
+            ///血小板 聊天按钮
+            IconButton(
+              onPressed: (){
+                 Navigator.of(context).push(new MaterialPageRoute(
+                    builder: (BuildContext context) => new KesShouBann()));
+              },
+              icon: Icon(Icons.extension),
+            ),
+          ],
+        ),
+        ///GridView
+        body: safeboorupreview==null?new Center(
+          child: CircularProgressIndicator(),
+        ):new GridView.count(
+            crossAxisCount: setcount,
+            children: new List<Widget>.generate(
+                safeboorupreview.length,
+                (a) => CachedNetworkImage(imageUrl: safeboorupreview[a],))
+                  ));
   }
 }
